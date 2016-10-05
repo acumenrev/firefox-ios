@@ -28,6 +28,8 @@ let TableVisits = "visits"
 let TableFaviconSites = "favicon_sites"
 let TableQueuedTabs = "queue"
 
+let TableActivityStreamBlocklist = "activity_stream_blocklist"
+
 let ViewBookmarksBufferOnMirror = "view_bookmarksBuffer_on_mirror"
 let ViewBookmarksBufferStructureOnMirror = "view_bookmarksBufferStructure_on_mirror"
 let ViewBookmarksLocalOnMirror = "view_bookmarksLocal_on_mirror"
@@ -66,6 +68,8 @@ private let AllTables: [String] = [
     TableBookmarksMirrorStructure,
 
     TableQueuedTabs,
+
+    TableActivityStreamBlocklist
 ]
 
 private let AllViews: [String] = [
@@ -100,7 +104,7 @@ private let log = Logger.syncLogger
  * We rely on SQLiteHistory having initialized the favicon table first.
  */
 public class BrowserTable: Table {
-    static let DefaultVersion = 17    // Bug 1298918.
+    static let DefaultVersion = 19    // Bug 1303731.
 
     // TableInfo fields.
     var name: String { return "BROWSER" }
@@ -232,6 +236,12 @@ public class BrowserTable: Table {
         "CREATE TABLE IF NOT EXISTS \(TableQueuedTabs) (" +
             "url TEXT NOT NULL UNIQUE, " +
             "title TEXT" +
+        ") "
+
+    let activityStreamBlocklistCreate =
+        "CREATE TABLE IF NOT EXISTS \(TableActivityStreamBlocklist) (" +
+            "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
+            "url TEXT NOT NULL UNIQUE " +
         ") "
 
     let iconColumns = ", faviconID INTEGER REFERENCES \(TableFavicons)(id) ON DELETE SET NULL"
@@ -553,6 +563,7 @@ public class BrowserTable: Table {
             historyVisitsView,
             awesomebarBookmarksView,
             awesomebarBookmarksWithIconsView,
+            activityStreamBlocklistCreate
         ]
 
         assert(queries.count == AllTablesIndicesAndViews.count, "Did you forget to add your table, index, or view to the list?")
@@ -768,6 +779,15 @@ public class BrowserTable: Table {
                 // Adds the local_modified, server_modified times to the local bookmarks view
                 "DROP VIEW IF EXISTS \(ViewBookmarksLocalOnMirror)",
                 self.localBookmarksView]) {
+                return false
+            }
+        }
+
+        if from < 19 && to >= 19 {
+            if !self.run(db, queries: [
+
+                // Adds the Activity Stream blocklist table
+                activityStreamBlocklistCreate]) {
                 return false
             }
         }

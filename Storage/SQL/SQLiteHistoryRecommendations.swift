@@ -52,8 +52,13 @@ extension SQLiteHistory: HistoryRecommendations {
             "SELECT \(siteProjection), iconID, iconURL, iconType, iconDate, iconWidth " +
             "FROM ( \(nonRecentHistory) UNION ALL \(bookmarkHighlights) ) " +
             "LEFT JOIN \(ViewHistoryIDsWithWidestFavicons) ON \(ViewHistoryIDsWithWidestFavicons).id = historyID " +
+            "WHERE url NOT IN (SELECT \(TableActivityStreamBlocklist).url FROM \(TableActivityStreamBlocklist) )" +
             "GROUP BY url"
 
         return self.db.runQuery(highlightsQuery, args: [thirtyMinutesAgo, threeDaysAgo, threeDaysAgo], factory: SQLiteHistory.iconHistoryColumnFactory)
+    }
+
+    public func removeHighlightForURL(url: String) -> Success {
+        return self.db.run([("INSERT INTO \(TableActivityStreamBlocklist) (url) VALUES (?)", [url])])
     }
 }
